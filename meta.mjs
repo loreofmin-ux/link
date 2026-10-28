@@ -6,10 +6,12 @@
 import { createFetchJson, createInnertube } from './innertube.mjs';
 import { PUBLIC_ORIGIN, resolveShare, shareUrl } from './share.mjs';
 import { asArray, asRecord, clip } from './yt.mjs';
+import { resolveArtistMeta } from './meta/artist.mjs';
 import { resolveAlbumMeta, resolvePlaylistMeta } from './meta/playlist.mjs';
 
 // kinds without a resolver keep the generic card
 export const RESOLVERS = {
+  artist: resolveArtistMeta,
   album: resolveAlbumMeta,
   playlist: resolvePlaylistMeta,
 };
