@@ -8,12 +8,14 @@ import { PUBLIC_ORIGIN, resolveShare, shareUrl } from './share.mjs';
 import { asArray, asRecord, clip } from './yt.mjs';
 import { resolveArtistMeta } from './meta/artist.mjs';
 import { resolveAlbumMeta, resolvePlaylistMeta } from './meta/playlist.mjs';
+import { resolveTrackMeta } from './meta/track.mjs';
 
 // kinds without a resolver keep the generic card
 export const RESOLVERS = {
   artist: resolveArtistMeta,
   album: resolveAlbumMeta,
   playlist: resolvePlaylistMeta,
+  track: resolveTrackMeta,
 };
 
 const LIMITS = { title: 100, description: 350, imageAlt: 120, author: 100, extra: 200, extraCount: 16 };
