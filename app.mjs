@@ -3,13 +3,15 @@
 import { Hono } from 'hono';
 import { resolveShare, deeplink } from './share.mjs';
 import { renderOpenPage, renderErrorPage, renderLanding } from './page.mjs';
+import { createMetaResolver } from './meta.mjs';
 
 const MAX_URL_CHARS = 2048;
 
 const BAD_LINK = renderErrorPage('Invalid link', 'This share link is broken or expired.');
 const NOT_FOUND = renderErrorPage('Not found', 'Nothing lives at this address.');
 
-export function createApp() {
+// resolveMeta is injectable so tests never touch the network
+export function createApp({ resolveMeta = createMetaResolver() } = {}) {
   const app = new Hono({ strict: false });
 
   // tiny static pages, no sniffing, no embedding, no referrer leakage
@@ -38,14 +40,16 @@ export function createApp() {
   app.get('/health', (c) => c.text('ok'));
 
   for (const kind of ['artist', 'album', 'playlist', 'track']) {
-    app.get(`/${kind}`, (c) => {
+    app.get(`/${kind}`, async (c) => {
       if (c.req.url.length > MAX_URL_CHARS) return c.html(BAD_LINK, 414);
       // dup detection needs the raw list, hono query helpers collapse it
       const params = new URL(c.req.url).searchParams;
       const share = resolveShare(`/${kind}`, params);
       if (!share) return c.html(BAD_LINK, 400);
+      // preview metadata for link unfurlers, null (generic card) on any failure or timeout
+      const meta = c.req.method === 'HEAD' ? null : await resolveMeta(share.type, share.id);
       return c.html(
-        renderOpenPage({ deep: deeplink(share.type, share.id), type: share.type }),
+        renderOpenPage({ deep: deeplink(share.type, share.id), type: share.type, meta }),
         200,
         { 'cache-control': 'no-store' },
       );
