@@ -121,3 +121,69 @@ test('bad ids never reach the metadata lookup', async () => {
   assert.equal((await rich.request('/nope?id=VLPLD8jNKEyHYB2DHh5vXSI4USLFo29vzUYl')).status, 404);
   assert.equal(lookups, 0);
 });
+
+test('an author adds the oembed link, the endpoint answers for canonical links only', async () => {
+  const lookups = [];
+  const rich = createApp({
+    resolveMeta: async (type, id) => {
+      lookups.push([type, id]);
+      if (id === 'MPREb_missing00') return null;
+      return {
+        title: 'Afterglow',
+        image: 'https://lh3.googleusercontent.com/art=w544-h544-p-l90-rj',
+        imageWidth: 544,
+        imageHeight: 544,
+        author: { name: 'Mara Vale', url: 'https://link.tryliner.fun/artist?id=UCGtGpOIGHfRu1KYL9pi-mNQ' },
+      };
+    },
+  });
+  const page = await (await rich.request('/album?id=MPREb_xCxkOKReFZv')).text();
+  assert.ok(
+    page.includes(
+      '<link rel="alternate" type="application/json+oembed" href="http://localhost/oembed?url=https%3A%2F%2Flink.tryliner.fun%2Falbum%3Fid%3DMPREb_xCxkOKReFZv&amp;format=json">',
+    ),
+  );
+
+  const res = await rich.request(
+    '/oembed?url=https%3A%2F%2Flink.tryliner.fun%2Falbum%3Fid%3DMPREb_xCxkOKReFZv&format=json',
+  );
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get('content-type'), /application\/json/);
+  assert.deepEqual(await res.json(), {
+    version: '1.0',
+    type: 'link',
+    provider_name: 'Liner',
+    title: 'Afterglow',
+    author_name: 'Mara Vale',
+    author_url: 'https://link.tryliner.fun/artist?id=UCGtGpOIGHfRu1KYL9pi-mNQ',
+    thumbnail_url: 'https://lh3.googleusercontent.com/art=w544-h544-p-l90-rj',
+    thumbnail_width: 544,
+    thumbnail_height: 544,
+  });
+  assert.deepEqual(lookups.at(-1), ['album', 'MPREb_xCxkOKReFZv']);
+
+  const before = lookups.length;
+  for (const target of [
+    'https://evil.example/album?id=MPREb_xCxkOKReFZv',
+    'https://link.tryliner.fun/album?id=javascript:alert(1)',
+    'https://link.tryliner.fun/evil?id=MPREb_xCxkOKReFZv',
+    'not a url',
+  ]) {
+    const bad = await rich.request(`/oembed?url=${encodeURIComponent(target)}`);
+    assert.equal(bad.status, 404, target);
+    assert.doesNotMatch(await bad.text(), /evil|javascript/);
+  }
+  assert.equal((await rich.request('/oembed')).status, 404);
+  const twice = encodeURIComponent('https://link.tryliner.fun/album?id=MPREb_xCxkOKReFZv');
+  assert.equal((await rich.request(`/oembed?url=${twice}&url=${twice}`)).status, 404);
+  assert.equal((await rich.request(`/oembed?url=${twice}&format=xml`)).status, 501);
+  assert.equal(lookups.length, before);
+
+  const missing = encodeURIComponent('https://link.tryliner.fun/album?id=MPREb_missing00');
+  assert.equal((await rich.request(`/oembed?url=${missing}`)).status, 404);
+
+  // no author, no oembed link
+  const plain = createApp({ resolveMeta: async () => ({ title: 'Mix' }) });
+  const plainPage = await (await plain.request('/playlist?id=VLPLD8jNKEyHYB2DHh5vXSI4USLFo29vzUYl')).text();
+  assert.doesNotMatch(plainPage, /oembed/);
+});

@@ -24,7 +24,7 @@ const KIND_LABEL = {
 const PAGE_STYLE = `body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0b0b0d;color:#ececef;font:15px/1.5 system-ui,-apple-system,sans-serif}.card{text-align:center;padding:32px 24px;max-width:340px}.eq{display:flex;align-items:flex-end;justify-content:center;gap:5px;height:44px;margin-bottom:20px}.eq span{width:5px;border-radius:3px;background:#1d9bf0;animation:bounce 1s ease-in-out infinite}.eq span:nth-child(1){height:40%;animation-delay:-.6s}.eq span:nth-child(2){height:90%;animation-delay:-.75s}.eq span:nth-child(3){height:55%;animation-delay:-.3s}.eq span:nth-child(4){height:100%;animation-delay:-.45s}.eq span:nth-child(5){height:65%;animation-delay:-.15s}@keyframes bounce{0%,100%{transform:scaleY(.35)}50%{transform:scaleY(1)}}@media (prefers-reduced-motion:reduce){.eq span{animation:none;transform:scaleY(.7)}}h1{margin:0;font-size:21px;letter-spacing:-.01em}p{margin:8px 0 0;color:#8e8e93}a.btn{display:inline-block;margin-top:22px;padding:11px 28px;border-radius:12px;background:#1d9bf0;color:#fff;text-decoration:none;font-weight:600}`;
 
 // open graph tags read by discord, slack, telegram... without meta it stays the generic card
-function previewTags(type, meta) {
+function previewTags(type, meta, oembedUrl) {
   const label = KIND_LABEL[type] ?? 'Liner';
   if (!meta) {
     return [
@@ -60,16 +60,17 @@ function previewTags(type, meta) {
   for (const [property, content] of meta.extra ?? []) {
     tags.push(`<meta property="${esc(property)}" content="${attr(content)}">`);
   }
+  if (oembedUrl) tags.push(`<link rel="alternate" type="application/json+oembed" href="${esc(oembedUrl)}">`);
   return tags;
 }
 
-export function renderOpenPage({ deep, type, meta = null }) {
+export function renderOpenPage({ deep, type, meta = null, oembedUrl = null }) {
   return `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-${previewTags(type, meta).join('\n')}
+${previewTags(type, meta, oembedUrl).join('\n')}
 <meta name="theme-color" content="#0b0b0d">
 <style>${PAGE_STYLE}</style>
 </head>
