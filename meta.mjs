@@ -97,6 +97,7 @@ export function sanitizeMeta(raw) {
 export function createMetaResolver({
   resolvers = RESOLVERS,
   innertube = createInnertube(),
+  youtube = createInnertube({ site: 'youtube' }),
   fetchJson = createFetchJson(),
   budgetMs = 2500,
   ttlMs = 30 * 60 * 1000,
@@ -104,7 +105,7 @@ export function createMetaResolver({
   maxEntries = 500,
   now = Date.now,
 } = {}) {
-  const deps = { innertube, fetchJson, shareUrl };
+  const deps = { innertube, youtube, fetchJson, shareUrl };
   // settled results only: workers must not share in-flight promises across requests
   const cache = new Map();
 

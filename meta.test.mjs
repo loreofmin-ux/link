@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMetaResolver, isShareUrl, sanitizeMeta } from './meta.mjs';
-import { createFetchJson, createInnertube, WEB_REMIX } from './innertube.mjs';
+import { createFetchJson, createInnertube, WEB, WEB_REMIX } from './innertube.mjs';
 import { shareUrl } from './share.mjs';
 
 const ARTIST = 'https://link.tryliner.fun/artist?id=UCGtGpOIGHfRu1KYL9pi-mNQ';
@@ -112,9 +112,11 @@ test('share urls are canonical link.tryliner.fun links with valid ids', () => {
 test('resolver gets the shared clients and its result is sanitized', async () => {
   const seen = [];
   const innertube = async () => ({});
+  const youtube = async () => ({});
   const fetchJson = async () => ({});
   const resolveMeta = createMetaResolver({
     innertube,
+    youtube,
     fetchJson,
     resolvers: {
       playlist: async (id, deps) => {
@@ -126,6 +128,7 @@ test('resolver gets the shared clients and its result is sanitized', async () =>
   assert.deepEqual(await resolveMeta('playlist', 'PLabcdefgh'), { title: 'Mix' });
   assert.equal(seen[0][0], 'PLabcdefgh');
   assert.equal(seen[0][1].innertube, innertube);
+  assert.equal(seen[0][1].youtube, youtube);
   assert.equal(seen[0][1].fetchJson, fetchJson);
   assert.equal(seen[0][1].shareUrl, shareUrl);
   assert.equal(await resolveMeta('album', 'MPREb_xCxkOKReFZv'), null);
@@ -199,6 +202,29 @@ test('innertube posts the WEB_REMIX context to music.youtube.com', async () => {
   assert.equal(init.headers['x-youtube-client-version'], WEB_REMIX.clientVersion);
   assert.ok(init.signal instanceof AbortSignal);
   assert.deepEqual(JSON.parse(init.body), { browseId: 'VLPLabc', context: { client: WEB_REMIX } });
+});
+
+test('the youtube client posts the WEB context to www.youtube.com and only browses', async () => {
+  const requests = [];
+  const youtube = createInnertube({
+    site: 'youtube',
+    fetch: async (url, init) => {
+      requests.push([url, init]);
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    },
+  });
+  assert.deepEqual(await youtube('browse', { browseId: 'UCGtGpOIGHfRu1KYL9pi-mNQ' }), { ok: true });
+  await assert.rejects(youtube('next', { videoId: 'RGdkabupfPI' }), /unsupported/);
+  await assert.rejects(youtube('player', { videoId: 'RGdkabupfPI' }), /unsupported/);
+  assert.equal(requests.length, 1);
+  const [url, init] = requests[0];
+  assert.equal(url, 'https://www.youtube.com/youtubei/v1/browse?prettyPrint=false');
+  assert.equal(init.method, 'POST');
+  assert.equal(init.headers.origin, 'https://www.youtube.com');
+  assert.equal(init.headers['x-youtube-client-name'], '1');
+  assert.equal(init.headers['x-youtube-client-version'], WEB.clientVersion);
+  assert.ok(init.signal instanceof AbortSignal);
+  assert.deepEqual(JSON.parse(init.body), { browseId: 'UCGtGpOIGHfRu1KYL9pi-mNQ', context: { client: WEB } });
 });
 
 test('innertube refuses other endpoints and surfaces http errors', async () => {

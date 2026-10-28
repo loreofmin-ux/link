@@ -35,7 +35,7 @@ Anything else → 404. Bad/missing/duplicate id → 400. Only `GET`/`HEAD`.
 
 ## link previews
 
-`meta/` holds one resolver per kind. Each reads the same YouTube Music call the desktop app makes for that page (`browse` / `next`, `WEB_REMIX` client, see `innertube.mjs`) and returns title, description, cover and a few `music:*` tags. `meta.mjs` gives the lookup a 2.5 s budget, caches results for 30 minutes and sanitizes every field. Any failure or timeout serves the generic page, the deeplink bounce never changes. Liner playlists (uuid / `pl-…`) keep the generic page: they live on the API, which only answers signed app requests.
+`meta/` holds one resolver per kind. Each reads the same YouTube Music call the desktop app makes for that page (`browse` / `next`, `WEB_REMIX` client, see `innertube.mjs`) and returns title, description, cover and a few `music:*` tags. YouTube Music artist pages only have a wide banner, so the artist resolver also browses the artist's YouTube channel (`WEB` client, `browse` only) for the profile picture, and keeps the YouTube Music image when that fails. `meta.mjs` gives the lookup a 2.5 s budget, caches results for 30 minutes and sanitizes every field. Any failure or timeout serves the generic page, the deeplink bounce never changes. Liner playlists (uuid / `pl-…`) keep the generic page: they live on the API, which only answers signed app requests.
 
 ## security model
 

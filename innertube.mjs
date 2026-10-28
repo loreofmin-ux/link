@@ -1,6 +1,8 @@
 // minimal youtube music client for share previews: the same public WEB_REMIX client
 // the desktop app uses (src/shared/youtube/innertube/innertubeClient.ts), no cookies,
 // no auth, read-only endpoints and a short timeout so a slow upstream never holds a page.
+// youtube's own WEB client only browses channels, for the artist profile picture that
+// youtube music artist pages leave out.
 
 export const INNERTUBE_ORIGIN = 'https://music.youtube.com';
 
@@ -11,22 +13,33 @@ export const WEB_REMIX = {
   gl: 'US',
 };
 
-const ENDPOINTS = new Set(['browse', 'next', 'player']);
+export const WEB = {
+  clientName: 'WEB',
+  clientVersion: '2.20260911.00.00',
+  hl: 'en',
+  gl: 'US',
+};
 
-export function createInnertube({ fetch = globalThis.fetch, timeoutMs = 2000 } = {}) {
+const SITES = {
+  music: { origin: INNERTUBE_ORIGIN, client: WEB_REMIX, clientId: '67', endpoints: new Set(['browse', 'next', 'player']) },
+  youtube: { origin: 'https://www.youtube.com', client: WEB, clientId: '1', endpoints: new Set(['browse']) },
+};
+
+export function createInnertube({ site = 'music', fetch = globalThis.fetch, timeoutMs = 2000 } = {}) {
+  const { origin, client, clientId, endpoints } = SITES[site];
   return async function innertube(endpoint, body) {
-    if (!ENDPOINTS.has(endpoint)) throw new Error(`unsupported innertube endpoint: ${endpoint}`);
-    const res = await fetch(`${INNERTUBE_ORIGIN}/youtubei/v1/${endpoint}?prettyPrint=false`, {
+    if (!endpoints.has(endpoint)) throw new Error(`unsupported innertube endpoint: ${endpoint}`);
+    const res = await fetch(`${origin}/youtubei/v1/${endpoint}?prettyPrint=false`, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
         accept: 'application/json',
-        origin: INNERTUBE_ORIGIN,
-        'x-origin': INNERTUBE_ORIGIN,
-        'x-youtube-client-name': '67',
-        'x-youtube-client-version': WEB_REMIX.clientVersion,
+        origin,
+        'x-origin': origin,
+        'x-youtube-client-name': clientId,
+        'x-youtube-client-version': client.clientVersion,
       },
-      body: JSON.stringify({ ...body, context: { client: WEB_REMIX } }),
+      body: JSON.stringify({ ...body, context: { client } }),
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!res.ok) throw new Error(`innertube ${endpoint} failed with HTTP ${res.status}`);
